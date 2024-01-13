@@ -1,3 +1,4 @@
+import logging
 from enum import Enum
 
 import can
@@ -47,13 +48,19 @@ class BoardCommunication(object):
             return interfaces
 
     def __init__(self, interface, channel, bitrate):
+        self.logger = logging.getLogger(__name__)
         self.__cal_state = None
         self.__cal_active = True
         self.__bus = can.interface.Bus(interface=interface, channel=channel, bitrate=bitrate)
 
-    def send_tool_status(self, status: bool):
-        message = can.Message(arbitration_id=self.CAN_CONTROL_ID, dlc=1, data=[1 if status else 0])
+    def send_tool_status(self, value: bool):
+        message = can.Message(arbitration_id=self.CAN_CONTROL_ID, dlc=1, data=[1 if value else 0])
         self.__bus.Send(message)
+        self.logger.info(f'State {value} sent to calibrator')
+
+    def calc_calibration(self, vsup, cal_points):
+        
+        return 1
 
     def start_calibration(self):
         self.send_tool_status(True)
@@ -63,7 +70,8 @@ class BoardCommunication(object):
             if msg is not None:
                 msg_vsup = can_reader.get_message(5)
                 msg_cal = can_reader.get_message(10)
+                cal_result = self.calc_calibration(msg_vsup.data, msg_cal.data)
+                self.save_cal_results(cal_result)
 
-    def stop_calibration(self):
-        self.send_tool_status(False)
+    def save_cal_results(self, cal_result):
         pass
