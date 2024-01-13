@@ -4,7 +4,7 @@ from enum import Enum
 import can
 
 
-class BoardCommunication(object):
+class BoardComm(object):
     class CalState(Enum):
         A = 1
 
@@ -53,13 +53,17 @@ class BoardCommunication(object):
         self.__cal_active = True
         self.__bus = can.interface.Bus(interface=interface, channel=channel, bitrate=bitrate)
 
+    def __del__(self):
+        if self.__bus:
+            self.__bus.shutdown()
+
     def send_tool_status(self, value: bool):
         message = can.Message(arbitration_id=self.CAN_CONTROL_ID, dlc=1, data=[1 if value else 0])
         self.__bus.Send(message)
         self.logger.info(f'State {value} sent to calibrator')
 
     def calc_calibration(self, vsup, cal_points):
-        
+
         return 1
 
     def start_calibration(self):
