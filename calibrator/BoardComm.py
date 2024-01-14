@@ -11,6 +11,12 @@ class BoardComm(object):
     CAN_CONTROL_ID = 0x510
     CAN_DATA_ID = 0x500
 
+    def __init__(self, logger, interface, channel, bitrate):
+        self.logger = logger
+        self.__cal_state = None
+        self.__cal_active = True
+        self.__bus = can.interface.Bus(interface=interface, channel=channel, bitrate=bitrate)
+
     @property
     def pf_threshold(self) -> int:
         return self.__cal_state
@@ -47,12 +53,6 @@ class BoardComm(object):
         finally:
             return interfaces
 
-    def __init__(self, interface, channel, bitrate):
-        self.logger = logging.getLogger(__name__)
-        self.__cal_state = None
-        self.__cal_active = True
-        self.__bus = can.interface.Bus(interface=interface, channel=channel, bitrate=bitrate)
-
     def __del__(self):
         if self.__bus:
             self.__bus.shutdown()
@@ -76,6 +76,7 @@ class BoardComm(object):
                 msg_cal = can_reader.get_message(10)
                 cal_result = self.calc_calibration(msg_vsup.data, msg_cal.data)
                 self.save_cal_results(cal_result)
+                postEvent
 
     def save_cal_results(self, cal_result):
         pass
