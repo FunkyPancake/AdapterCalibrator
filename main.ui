@@ -283,7 +283,7 @@
       <item row="4" column="1" colspan="2">
        <widget class="QLineEdit" name="db_path_line_edit"/>
       </item>
-      <item row="5" column="1" colspan="2">
+      <item row="5" column="1" colspan="3">
        <widget class="QLabel" name="status_indicator">
         <property name="font">
          <font>
@@ -302,10 +302,26 @@
         </property>
        </widget>
       </item>
+      <item row="2" column="8">
+       <widget class="QLabel" name="cal_status">
+        <property name="font">
+         <font>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>TextLabel</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
      </layout>
     </item>
     <item row="2" column="0">
-     <widget class="QTextEdit" name="textEdit"/>
+     <widget class="QPlainTextEdit" name="log_text"/>
     </item>
    </layout>
   </widget>

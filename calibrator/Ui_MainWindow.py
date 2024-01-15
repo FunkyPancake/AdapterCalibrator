@@ -160,11 +160,19 @@ class Ui_MainWindow(object):
         self.status_indicator.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.status_indicator.setAlignment(QtCore.Qt.AlignCenter)
         self.status_indicator.setObjectName("status_indicator")
-        self.gridLayout_3.addWidget(self.status_indicator, 5, 1, 1, 2)
+        self.gridLayout_3.addWidget(self.status_indicator, 5, 1, 1, 3)
+        self.cal_status = QtWidgets.QLabel(self.centralwidget)
+        font = QtGui.QFont()
+        font.setBold(True)
+        font.setWeight(75)
+        self.cal_status.setFont(font)
+        self.cal_status.setAlignment(QtCore.Qt.AlignCenter)
+        self.cal_status.setObjectName("cal_status")
+        self.gridLayout_3.addWidget(self.cal_status, 2, 8, 1, 1)
         self.gridLayout.addLayout(self.gridLayout_3, 1, 0, 1, 1)
-        self.textEdit = QtWidgets.QTextEdit(self.centralwidget)
-        self.textEdit.setObjectName("textEdit")
-        self.gridLayout.addWidget(self.textEdit, 2, 0, 1, 1)
+        self.log_text = QtWidgets.QPlainTextEdit(self.centralwidget)
+        self.log_text.setObjectName("log_text")
+        self.gridLayout.addWidget(self.log_text, 2, 0, 1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
 
         self.retranslateUi(MainWindow)
@@ -187,6 +195,7 @@ class Ui_MainWindow(object):
         self.label_3.setText(_translate("MainWindow", "V supply"))
         self.label_7.setText(_translate("MainWindow", "Max tolerance"))
         self.status_indicator.setText(_translate("MainWindow", "Status"))
+        self.cal_status.setText(_translate("MainWindow", "TextLabel"))
 
 
 if __name__ == "__main__":
