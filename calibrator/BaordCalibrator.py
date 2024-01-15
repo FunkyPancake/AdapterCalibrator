@@ -3,6 +3,7 @@ import logging
 import can
 
 from calibrator.ApplicationError import ApplicationError
+from calibrator.Record import Record
 
 
 class CalData:
@@ -18,6 +19,9 @@ class BaordCalibrator(object):
     CAN_DATA_ID = 0x500
 
     def __init__(self, logger: logging.Logger, interface, channel, bitrate, max_tolerance):
+        self.max_tolerance = max_tolerance
+        self.vsup_trg = 5.0
+        self.vsup_meas = None
         self.cal_broken_callback = None
         self.cal_finished_callback = None
         self.cal_started_callback = None
@@ -25,6 +29,7 @@ class BaordCalibrator(object):
         self.__cal_state = None
         self.__cal_active = True
         try:
+            # todo add listener
             self.__bus = can.interface.Bus(interface=interface, channel=channel, bitrate=bitrate)
             self.logger.info(f"Connected to {interface}:{channel} @{bitrate} bps.")
         except can.exceptions.CanInitializationError as e:
@@ -51,11 +56,18 @@ class BaordCalibrator(object):
     def send_tool_status(self, value: bool):
         self.logger.info(f'Send status {value} to calibrator')
         message = can.Message(arbitration_id=self.CAN_CONTROL_ID, dlc=1, data=[1 if value else 0])
-        self.__bus.Send(message)
+        self.__bus.send(message)
 
     def calc_calibration(self):
+        pf = True
+        tol_vsup = (self.vsup_meas - self.vsup_trg) / self.vsup_trg
+        tol_bd = 0
 
-        return 1
+        pf &= tol_vsup <= self.max_tolerance
+        pf &= tol_bd <= self.max_tolerance
+        # todo finish calculation
+        record = Record(0, 0, 0, 0, 0, 0)
+        return CalData(record=record, tol_vsup=tol_vsup, tol_bd=tol_bd, pf=pf)
 
     def start_calibration(self):
         self.send_tool_status(True)
@@ -63,6 +75,7 @@ class BaordCalibrator(object):
     def stop_calibration(self):
         self.send_tool_status(False)
 
+    # todo finish callback
     def on_new_frame(self, frame):
         cal_result = self.calc_calibration()
         if self.cal_finished_callback:

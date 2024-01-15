@@ -43,14 +43,19 @@ class UiWrapper(QMainWindow, Ui_MainWindow):
             if self.can_if_combo_box.currentData() != '' and self.db_path_line_edit.text() != '':
                 item = self.can_if_combo_box.currentData()
                 try:
+                    tolerance = self.tol_sb.value()
                     self.calibrator__ = BaordCalibrator(self.logger, interface=item['interface'], channel=item[
-                        'channel'], bitrate='500000', max_tolerance=self.tol_sb.value())
+                        'channel'], bitrate='500000', max_tolerance=tolerance)
                     self.calibrator__.add_cal_started_callback(self.on_cal_started)
                     self.calibrator__.add_cal_finished_callback(self.on_board_calibrated)
                     self.calibrator__.add_cal_broken_callback(self.on_board_disconnected)
                     self.db__ = DbWrapper(self.logger, self.db_path_line_edit.text())
                     self.is_connected__ = True
                     self.update_status('connected')
+                    self.cal_pb.setMinimum(-tolerance)
+                    self.cal_pb.setMaximum(tolerance)
+                    self.vsup_pb.setMinimum(-tolerance)
+                    self.vsup_pb.setMaximum(tolerance)
                     self.calibrator__.start_calibration()
                 except ApplicationError as e:
                     pass
@@ -70,6 +75,8 @@ class UiWrapper(QMainWindow, Ui_MainWindow):
 
     def clear_cal_results(self):
         self.id_line_edit.setText('')
+        self.vsup_ideal_num(0)
+        self.vsup_meas_num.display(0)
         self.cal_l_m_num.display(0)
         self.cal_h_m_num.display(0)
         self.cal_l_t_num.display(0)
@@ -104,6 +111,8 @@ class UiWrapper(QMainWindow, Ui_MainWindow):
 
     def on_board_calibrated(self, cal_data: CalData):
         self.id_line_edit.setText(cal_data.record.board_id)
+        self.vsup_ideal_num.display(self.calibrator__.vsup_trg)
+        self.vsup_meas_num.display(cal_data.record.vsup)
         self.cal_l_m_num.display(cal_data.record.vlm)
         self.cal_h_m_num.display(cal_data.record.vhm)
         self.cal_l_t_num.display(cal_data.record.vld)
