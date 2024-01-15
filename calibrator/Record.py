@@ -3,7 +3,11 @@ import shortuuid
 
 
 class Record:
-    def __init__(self, vsup, vlm, vhm):
+    def __init__(self, vsup, vlm, vhm, vld, vhd, vls, vhs):
+        self.vhs = vhs
+        self.vls = vls
+        self.vhd = vhd
+        self.vld = vld
         self.vsup = vsup
         self.vlm = vlm
         self.vhm = vhm
@@ -14,7 +18,7 @@ class Record:
         return {
             'board_id': self.board_id,
             'timestamp': self.timestamp,
-            'v_sup_meas': self.vsup,
-            'v_low_meas': self.vlm,
-            'v_high_meas': self.vhm
+            'v_sup': self.vsup,
+            'v_low': self.vls,
+            'v_high': self.vhs
         }
