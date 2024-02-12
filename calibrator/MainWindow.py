@@ -1,19 +1,23 @@
 import logging
 
-from PyQt5 import Qt
-from PyQt5.QtCore import QSettings
-from PyQt5.QtWidgets import QMainWindow
+from PySide6.QtCore import QTimer, QUrl, Slot
+from PySide6.QtGui import QDesktopServices
+from PySide6.QtWidgets import QLabel, QMainWindow
+from PySide6.QtSerialBus import QCanBus, QCanBusDevice, QCanBusFrame
+
 
 from calibrator.ApplicationError import ApplicationError
 from calibrator.DbWrapper import DbWrapper
 from calibrator.QTextHandler import QTextHandler
-from calibrator.Ui_MainWindow import Ui_MainWindow
-from calibrator.BaordCalibrator import BaordCalibrator, CalData
+from calibrator.BoardCalibrator import BoardCalibrator, CalData
+from calibrator.ui_mainwindow import Ui_MainWindow
 
 
-class UiWrapper(QMainWindow, Ui_MainWindow):
+class MainWindow(QMainWindow):
     def __init__(self, logger: logging.Logger):
         super().__init__()
+        self.m_ui = Ui_MainWindow()
+
         self.logger = logger
         self.is_connected__ = False
         self.calibrator__ = None
@@ -40,11 +44,11 @@ class UiWrapper(QMainWindow, Ui_MainWindow):
             self.is_connected__ = False
             self.update_status('disconnected')
         else:
-            if self.can_if_combo_box.currentData() != '' and self.db_path_line_edit.text() != '':
+            if self.can_if_combo_box.currentText() != '' and self.db_path_line_edit.text() != '':
                 item = self.can_if_combo_box.currentData()
                 try:
                     tolerance = self.tol_sb.value()
-                    self.calibrator__ = BaordCalibrator(self.logger, interface=item['interface'], channel=item[
+                    self.calibrator__ = BoardCalibrator(self.logger, interface=item['interface'], channel=item[
                         'channel'], bitrate='500000', max_tolerance=tolerance)
                     self.calibrator__.add_cal_started_callback(self.on_cal_started)
                     self.calibrator__.add_cal_finished_callback(self.on_board_calibrated)
@@ -75,7 +79,7 @@ class UiWrapper(QMainWindow, Ui_MainWindow):
 
     def clear_cal_results(self):
         self.id_line_edit.setText('')
-        self.vsup_ideal_num(0)
+        self.vsup_ideal_num.display(0)
         self.vsup_meas_num.display(0)
         self.cal_l_m_num.display(0)
         self.cal_h_m_num.display(0)
@@ -101,7 +105,7 @@ class UiWrapper(QMainWindow, Ui_MainWindow):
         self.cal_status.setText(status)
 
     def update_can_if_list(self):
-        [self.can_if_combo_box.addItem(i['channel'], i) for i in BaordCalibrator.get_interfaces()]
+        [self.can_if_combo_box.addItem(i['channel'], i) for i in BoardCalibrator.get_interfaces()]
 
     def on_cal_started(self):
         self.update_cal_status('IN PROGRESS')
@@ -111,12 +115,12 @@ class UiWrapper(QMainWindow, Ui_MainWindow):
 
     def on_board_calibrated(self, cal_data: CalData):
         self.id_line_edit.setText(cal_data.record.board_id)
-        self.vsup_ideal_num.display(self.calibrator__.vsup_trg)
-        self.vsup_meas_num.display(cal_data.record.vsup)
-        self.cal_l_m_num.display(cal_data.record.vlm)
-        self.cal_h_m_num.display(cal_data.record.vhm)
-        self.cal_l_t_num.display(cal_data.record.vld)
-        self.cal_h_t_num.display(cal_data.record.vhd)
+        self.vsup_ideal_num.display(f"{self.calibrator__.vsup_trg:.3f}")
+        self.vsup_meas_num.display(f"{cal_data.record.vsup:.3f}")
+        self.cal_l_m_num.display(f"{cal_data.record.vlm:.3f}")
+        self.cal_h_m_num.display(f"{cal_data.record.vhm:.3f}")
+        self.cal_l_t_num.display(f"{cal_data.record.vld:.3f}")
+        self.cal_h_t_num.display(f"{cal_data.record.vhd:.3f}")
         self.vsup_pb.setValue(cal_data.tol_vsup)
         self.cal_pb.setValue(cal_data.tol_bd)
         self.update_pf_status(cal_data.pf)

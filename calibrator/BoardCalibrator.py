@@ -1,6 +1,10 @@
 import logging
+from enum import Enum
 
-import can
+from typing import List
+
+from PySide6.QtCore import Slot
+from PySide6.QtSerialBus import QCanBus, QCanBusDevice, QCanBusFrame
 
 from calibrator.ApplicationError import ApplicationError
 from calibrator.Record import Record
@@ -14,11 +18,19 @@ class CalData:
         self.pf = pf
 
 
-class BaordCalibrator(object):
+class BoardCalibrator(object):
+    class State(Enum):
+        Wait = 0
+        InProgress = 1
+        Done = 2
+
     CAN_CONTROL_ID = 0x510
-    CAN_DATA_ID = 0x500
+    CAN_STATUS_ID = 0x500
+    CAN_DATA_ID = 0x501
+    CAN_VSUP_ID = 0x502
 
     def __init__(self, logger: logging.Logger, interface, channel, bitrate, max_tolerance):
+        self.notifier__ = None
         self.max_tolerance = max_tolerance
         self.vsup_trg = 5.0
         self.vsup_meas = None
@@ -29,7 +41,6 @@ class BaordCalibrator(object):
         self.__cal_state = None
         self.__cal_active = True
         try:
-            # todo add listener
             self.__bus = can.interface.Bus(interface=interface, channel=channel, bitrate=bitrate)
             self.logger.info(f"Connected to {interface}:{channel} @{bitrate} bps.")
         except can.exceptions.CanInitializationError as e:
@@ -70,22 +81,43 @@ class BaordCalibrator(object):
         return CalData(record=record, tol_vsup=tol_vsup, tol_bd=tol_bd, pf=pf)
 
     def start_calibration(self):
+        listener: List[MessageRecipient] = [self.on_new_can_message]
+        self.notifier__ = can.Notifier(self.__bus, listener)
         self.send_tool_status(True)
 
     def stop_calibration(self):
+        self.notifier__.stop()
         self.send_tool_status(False)
 
-    # todo finish callback
-    def on_new_frame(self, frame):
-        cal_result = self.calc_calibration()
-        if self.cal_finished_callback:
-            self.cal_finished_callback(cal_result)
 
-    def add_cal_started_callback(self, callback):
-        self.cal_started_callback = callback
+@Slot
+def on_new_can_message(self, frame: can.message) -> None:
+    if frame.arbitration_id == self.CAN_STATUS_ID:
+        if frame.data[0] == self.State.Wait:
+            pass
 
-    def add_cal_finished_callback(self, callback):
-        self.cal_finished_callback = callback
+        if frame.data[0] == self.State.InProgress:
+            pass
 
-    def add_cal_broken_callback(self, callback):
-        self.cal_broken_callback = callback
+        if frame.data[0] == self.State.Done:
+            cal_result = self.calc_calibration()
+            if self.cal_finished_callback:
+                self.cal_finished_callback(cal_result)
+
+    if frame.arbitration_id == self.CAN_DATA_ID:
+        pass
+
+    if frame.arbitration_id == self.CAN_VSUP_ID:
+        self.vsup_meas = float(frame.data[1] << 8 + frame.data[0])
+
+
+def add_cal_started_callback(self, callback):
+    self.cal_started_callback = callback
+
+
+def add_cal_finished_callback(self, callback):
+    self.cal_finished_callback = callback
+
+
+def add_cal_broken_callback(self, callback):
+    self.cal_broken_callback = callback
