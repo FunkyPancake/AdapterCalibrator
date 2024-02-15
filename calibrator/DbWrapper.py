@@ -25,6 +25,9 @@ class DbWrapper:
             logger.fatal(f"Could not connect to the database, {e.message}")
             raise ApplicationError(e)
 
+    def __del__(self):
+        self.logger.info("disconnect from database")
+
     def add_record(self, record: Record):
         (uid, inserted) = self.collection__.insert_one(record.as_dict())
         if inserted:

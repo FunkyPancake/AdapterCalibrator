@@ -3,7 +3,7 @@ from enum import Enum
 
 from typing import List
 
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Slot, QByteArray
 from PySide6.QtSerialBus import QCanBus, QCanBusDevice, QCanBusFrame
 
 from calibrator.ApplicationError import ApplicationError
@@ -29,45 +29,41 @@ class BoardCalibrator(object):
     CAN_DATA_ID = 0x501
     CAN_VSUP_ID = 0x502
 
-    def __init__(self, logger: logging.Logger, interface, channel, bitrate, max_tolerance):
-        self.notifier__ = None
+    def __init__(self, logger: logging.Logger, interface, bitrate, max_tolerance):
+        pass
         self.max_tolerance = max_tolerance
         self.vsup_trg = 5.0
         self.vsup_meas = None
         self.cal_broken_callback = None
         self.cal_finished_callback = None
         self.cal_started_callback = None
-        self.logger = logger
+        self.__logger = logger
         self.__cal_state = None
         self.__cal_active = True
-        try:
-            self.__bus = can.interface.Bus(interface=interface, channel=channel, bitrate=bitrate)
-            self.logger.info(f"Connected to {interface}:{channel} @{bitrate} bps.")
-        except can.exceptions.CanInitializationError as e:
-            self.logger.fatal(f"Could not connect to {interface}:{channel}, {e.message}.")
-            raise ApplicationError(e)
+
+        (device, error_string) = QCanBus.instance().createDevice(interface.plugin(), interface.name())
+        if not device:
+            self.__logger.fatal(f"Error creating device '{interface.plugin()}', reason: '{error_string}'")
+            return
+        self.__can_device = device
+        self.__can_device.framesReceived.connect(self.process_received_frames)
+        self.__logger.info(f"Connected to {interface.plugin()}:{interface.name()} @{bitrate} bps.")
 
     @staticmethod
-    def get_interfaces():
-        interfaces = []
-        try:
-            interfaces = can.detect_available_configs(['pcan'])
-        except can.CanError as e:
-            print(e)
-        except FileNotFoundError as e:
-            print(e)
-        finally:
-            return interfaces
+    def get_interfaces() -> list:
+        interfaces, error_string = QCanBus.instance().availableDevices('peakcan')
+
+        return interfaces
 
     def __del__(self):
         self.stop_calibration()
-        if self.__bus:
-            self.__bus.shutdown()
+        if self.__can_device:
+            self.__can_device.shutdown()
 
     def send_tool_status(self, value: bool):
-        self.logger.info(f'Send status {value} to calibrator')
-        message = can.Message(arbitration_id=self.CAN_CONTROL_ID, dlc=1, data=[1 if value else 0])
-        self.__bus.send(message)
+        self.__logger.info(f'Send status {value} to calibrator')
+        frame = QCanBusFrame(identifier=self.CAN_CONTROL_ID, data=QByteArray([1 if value else 0], 1))
+        send_frame(frame)
 
     def calc_calibration(self):
         pf = True
@@ -81,43 +77,46 @@ class BoardCalibrator(object):
         return CalData(record=record, tol_vsup=tol_vsup, tol_bd=tol_bd, pf=pf)
 
     def start_calibration(self):
-        listener: List[MessageRecipient] = [self.on_new_can_message]
-        self.notifier__ = can.Notifier(self.__bus, listener)
         self.send_tool_status(True)
 
     def stop_calibration(self):
-        self.notifier__.stop()
         self.send_tool_status(False)
 
+    @Slot()
+    def process_received_frames(self):
+        if not self.can_device__:
+            return
+        while self.can_device__.framesAvailable():
+            frame = self.m_can_device.readFrame()
+            if frame.frameId() == self.CAN_STATUS_ID:
+                if frame.payload()[0] == self.State.Wait:
+                    pass
 
-@Slot
-def on_new_can_message(self, frame: can.message) -> None:
-    if frame.arbitration_id == self.CAN_STATUS_ID:
-        if frame.data[0] == self.State.Wait:
-            pass
+                if frame.payload()[0] == self.State.InProgress:
+                    pass
 
-        if frame.data[0] == self.State.InProgress:
-            pass
+                if frame.payload()[0] == self.State.Done:
+                    cal_result = self.calc_calibration()
+                    if self.cal_finished_callback:
+                        self.cal_finished_callback(cal_result)
 
-        if frame.data[0] == self.State.Done:
-            cal_result = self.calc_calibration()
-            if self.cal_finished_callback:
-                self.cal_finished_callback(cal_result)
+            if frame.arbitration_id == self.CAN_DATA_ID:
+                pass
 
-    if frame.arbitration_id == self.CAN_DATA_ID:
-        pass
+            if frame.arbitration_id == self.CAN_VSUP_ID:
+                self.vsup_meas = float(frame.data[1] << 8 + frame.data[0])
 
-    if frame.arbitration_id == self.CAN_VSUP_ID:
-        self.vsup_meas = float(frame.data[1] << 8 + frame.data[0])
+    def add_cal_started_callback(self, callback):
+        self.cal_started_callback = callback
 
+    def add_cal_finished_callback(self, callback):
+        self.cal_finished_callback = callback
 
-def add_cal_started_callback(self, callback):
-    self.cal_started_callback = callback
-
-
-def add_cal_finished_callback(self, callback):
-    self.cal_finished_callback = callback
+    def add_cal_broken_callback(self, callback):
+        self.cal_broken_callback = callback
 
 
-def add_cal_broken_callback(self, callback):
-    self.cal_broken_callback = callback
+@Slot(QCanBusFrame)
+def send_frame(self, frame):
+    if self.m_can_device:
+        self.m_can_device.writeFrame(frame)

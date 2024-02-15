@@ -18,6 +18,6 @@
 
 /.idea
 /.venv
-/__pycache__/
+/calibrator/__pycache__/
 /*.pyo
 /*.log
